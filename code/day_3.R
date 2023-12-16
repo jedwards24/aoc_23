@@ -1,3 +1,5 @@
+# I went tidyverse with this which felt a bit cumbersome but it worked first time
+
 library(tidyverse)
 library(edwards)
 txt <- readLines("data/data_3.txt")
