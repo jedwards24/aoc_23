@@ -12,6 +12,8 @@ nums <- map_chr(lst, ~pluck(., 2)) %>%
   map(~as.numeric(str_split_1(., ",")))
 nums
 
+# Combinatorial method ------------
+
 # Get number of valid arrangements for record `rec` and
 # `num` - groups of damaged springs `
 n_arrange <- function(rec, num) {
@@ -39,21 +41,9 @@ replace_qms <- function(x, hash_ind) {
 
 sol <- map2_int(recs, nums, ~n_arrange(.x, .y), .progress = TRUE)
 sum(sol) # answer
-#----------
-unlist(str_match_all(recs[[1]], "\\?+")) %>% str_length()
-?str_which
-nhash <- str_count(recs[1], "#")
-r <- str_split_1(recs[1], "")
-r
-n <- nums[[1]]
-qm <- str_which(r, "\\?")
-cm <- combn(length(qm), sum(n) - nhash, simplify = F)
-hash_ind <- map(cm, ~qm[.])
-head(hash_ind)
-rec_to_test <- map_chr(hash_ind, ~replace_qms(r, .))
-map_lgl(rec_to_test, test_arrange, num = n) %>% sum()
 
-# part 2--------------
+# part 2
+# Not practical
 recs <- map_chr(lst, ~pluck(., 1)) %>%
   map_chr(~str_c(rep(., 5), collapse = "?"))
 nums <- map_chr(lst, ~pluck(., 2)) %>%
@@ -72,18 +62,6 @@ tb <- tibble(record = recs) %>%
 tb
 max(tb$n_comb) # 48620
 mean(tb$n_comb)
-
-
-###########
-nn <- 1:10
-system_time(map2_int(recs[nn], nums[nn], ~n_arrange(.x, .y), .progress = TRUE)) #1.8s
-
-recs[1]
-nums[[1]]
-
-head(recs)
-head(nums)
-
 
 # DP Method-------
 # rr is record, nn is lengths of contiguous blocks (num)
@@ -129,19 +107,20 @@ count_arrange2 <- function(rr, nn) {
     }
     return(1)
   }
-  if (str_length(rr) < sum(nn) + length(nn) - 1) return(0L)
-  valid_now <- !str_sub(rr, nn[1] + 1, nn[1] + 1) == "#"
-  if (str_sub(rr, 1, 1) == "#"){
-    if (valid_now){
+  if (length(nn) == 1 && str_length(rr) == nn) return(1)
+  if (str_length(rr) < sum(nn) + length(nn) - 1) return(0)
+  if (!str_detect(rr, "\\#")){
+    return(choose(str_length(rr) + 1 - sum(nn), length(nn)))
+  }
+  if (str_sub(rr, nn[1] + 1, nn[1] + 1) != "#"){ # check is valid
+    if (str_sub(rr, 1, 1) == "#"){
       return(count_arrange2(str_sub(rr, nn[1] + 2), nn[-1]))
     }
-    return(0)
+    return(count_arrange2(str_sub(rr, nn[1] + 2), nn[-1]) +
+             count_arrange2(str_sub(rr, 2), nn))
   }
-  if (!valid_now){
-    return(count_arrange2(str_sub(rr, 2), nn))
-  }
-  return(count_arrange2(str_sub(rr, nn[1] + 2), nn[-1]) +
-           count_arrange2(str_sub(rr, 2), nn))
+  if (str_sub(rr, 1, 1) == "#") return(0)
+  return(count_arrange2(str_sub(rr, 2), nn))
 }
 
 # `blocks` is a record split by dots.
@@ -181,8 +160,8 @@ recs2 <- str_remove(recs, "\\.+$") %>%
   str_remove("^\\.+")
 system_time(sol <- map2_int(recs2[nn], nums[nn], ~count_arrange(.x, .y), .progress = TRUE))
 system_time(sol2 <- map2_int(recs2[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
-
 identical(sol, sol2)
+sum(sol2)
 
 # part 2
 recs <- map_chr(lst, ~pluck(., 1)) %>%
@@ -193,13 +172,27 @@ nums <- map_chr(lst, ~pluck(., 2)) %>%
   map(~as.numeric(str_split_1(., ","))) %>%
   map(~rep(., 5))
 nn <- seq_along(recs)
-nn <- 2
-#system_time(sol <- map2_int(recs[nn], nums[nn], ~count_arrange(.x, .y), .progress = TRUE))
-system_time(sol2 <- map2_dbl(recs[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+nn <- 1
+system_time(sol <- map2_int(recs[nn], nums[nn], ~count_arrange(.x, .y), .progress = TRUE))
+#system_time(sol2 <- map2_dbl(recs[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
 sum(sol2)
 nums[1:4]
 recs[1:4]
 
-map2_dbl(recs[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE)
-nn <- 1
-profvis::profvis(dp_blocks(str_split_1(recs[nn], "\\.+"), nums[[nn]]))
+sol <- numeric(length(recs))
+tt <- numeric(length(recs))
+for (i in 100){
+  tt[i] <- system_time(sol[i] <- dp_blocks(str_split_1(recs[i], "\\.+"), nums[[i]]))[1]
+  cat(i, "\n")
+  print(tt[i])
+}
+head(sol)
+n <- 556
+recs[n]
+nums[[n]]
+sum(nums[[n]])
+str_length(recs[n])
+
+enframe(tt) %>%
+  arrange(desc(value)) %>%
+  print(n = 30)
