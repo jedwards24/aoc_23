@@ -13,3 +13,8 @@ which_mat <- function(x, mat) {
   ind <- which(x == mat)
   c((ind - 1) %% nrow(mat) + 1, ((ind - 1) %/% nrow(mat)) + 1)
 }
+
+# Convert x to binary vector of length `bits`
+int2bin = function(x, bits) {
+  rev(as.numeric(intToBits(x))[1:bits])
+}
