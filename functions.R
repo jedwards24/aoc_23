@@ -18,3 +18,20 @@ which_mat <- function(x, mat) {
 int2bin = function(x, bits) {
   rev(as.numeric(intToBits(x))[1:bits])
 }
+
+# Split text file by empty lines
+# Returns list of character vecs
+split_text <- function(x) {
+  start <- 1
+  blanks <- str_which(x, "^$")
+  tlist <- vector("list", length(blanks))
+  for (i in seq_along(blanks)){
+    tlist[[i]] <- x[start:(blanks[i] - 1)]
+    start <- blanks[i] + 1
+  }
+  tlist
+}
+
+text_to_matrix <- function(x) {
+  str_split(x, "", simplify = TRUE)
+}
