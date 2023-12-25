@@ -145,3 +145,49 @@ count_arrange3 <- function(rr, nn) {
   if (rr[1] == "#") return(0)
   return(count_arrange3(rr[-1], nn))
 }
+
+# DP approach
+# Record counts in a matrix and reuse
+count_arrange4 <- function(rr, nn) {
+  rr <- str_remove(rr, "^\\.+") %>%
+    str_split_1("")
+  vals <- matrix(NA_real_, nrow = length(rr), ncol = length(nn))
+  lenn <- length(nn)
+  lenr <- length(rr)
+  for (i in seq_along(nn)){
+    for (j in seq_along(rr)){
+      if (j < sum(nn[i:lenn]) + i - 1){
+        vals[i, j] <- 0
+        next()
+      }
+      if (i == 1){
+        vals[i, j] <- j >= nn[lenn] && !any(r[j:lenr] == ".")
+        next()
+      }
+      vals[i, j] <- vals[i, j - 1] + vals[i - 1, j - nn[i]] # needs conditions
+
+      ncur <- nn[length(nn)]
+
+    }
+  }
+  if (length(nn) == 0){
+    if (str_detect(rr, "\\#")){
+      return(0)
+    }
+    return(1)
+  }
+  if (str_length(rr) < sum(nn) + length(nn) - 1) return(0L)
+  valid_now <- !(str_detect(str_sub(rr, 1, nn[1]), "\\.") ||
+                   str_sub(rr, nn[1] + 1, nn[1] + 1) == "#")
+  if (str_sub(rr, 1, 1) == "#"){
+    if (valid_now){
+      return(count_arrange(str_sub(rr, nn[1] + 2), nn[-1]))
+    }
+    return(0)
+  }
+  if (!valid_now){
+    return(count_arrange(str_sub(rr, 2), nn))
+  }
+  return(count_arrange(str_sub(rr, nn[1] + 2), nn[-1]) +
+           count_arrange(str_sub(rr, 2), nn))
+}
