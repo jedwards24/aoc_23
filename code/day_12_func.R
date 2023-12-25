@@ -110,13 +110,13 @@ dp_blocks3 <- function(blocks, nn) {
   total <- 0
   if (length(blocks) == 1) return(count_arrange3(str_split_1(blocks[1], ""), nn))
   if (!str_detect(blocks[1], "\\#")){
-    total <- total + dp_blocks(blocks[-1], nn)
+    total <- total + dp_blocks3(blocks[-1], nn)
   }
   for (i in 1 : length(nn)){
     nset <- nn[1:i]
     if (str_length(blocks[1]) < sum(nset) + length(nset) - 1) break()
     total <- total +
-      dp_blocks(blocks[-1], nn[-c(1:i)]) *
+      dp_blocks3(blocks[-1], nn[-c(1:i)]) *
       count_arrange3(str_split_1(blocks[1], ""), nset)
   }
   total
@@ -146,48 +146,112 @@ count_arrange3 <- function(rr, nn) {
   return(count_arrange3(rr[-1], nn))
 }
 
-# DP approach
+
+# Proper DP approach-------------
 # Record counts in a matrix and reuse
 count_arrange4 <- function(rr, nn) {
   rr <- str_remove(rr, "^\\.+") %>%
+    str_remove("\\.+$") %>%
     str_split_1("")
-  vals <- matrix(NA_real_, nrow = length(rr), ncol = length(nn))
+  vals <- matrix(NA_real_, nrow = length(nn), ncol = length(rr))
   lenn <- length(nn)
   lenr <- length(rr)
   for (i in seq_along(nn)){
     for (j in seq_along(rr)){
-      if (j < sum(nn[i:lenn]) + i - 1){
-        vals[i, j] <- 0
-        next()
-      }
-      if (i == 1){
-        vals[i, j] <- j >= nn[lenn] && !any(r[j:lenr] == ".")
-        next()
-      }
-      vals[i, j] <- vals[i, j - 1] + vals[i - 1, j - nn[i]] # needs conditions
-
-      ncur <- nn[length(nn)]
-
+      vals[i, j] <- value_state(rr, nn, i, j, vals)
     }
   }
+  vals[lenn, lenr]
+}
+
+# Called from count_arrange4
+#
+value_state <- function(rr, nn, i, j, vals) {
+  lenn <- length(nn)
+  lenr <- length(rr)
+  if (j < sum(tail(nn, i)) + i - 1) return(0)
+  if (i == 1){
+    if (j < nn[lenn]) return(0)
+    rcur <- tail(rr, j)
+    if (j == nn[lenn]) return(!any(rcur == "."))
+    option_now <- !any(rcur[1:nn[lenn]] == ".") && !any(rcur[(nn[lenn] + 1):length(rcur)] == "#")
+    if(option_now){
+      if (rcur[1] == "#") return(1)
+      return(vals[i, j - 1] + 1)
+    }
+    if (rcur[1] == "#") return(0) else return(vals[i, j - 1])
+  }
+  rcur <- tail(rr, j)
+  ncur <- tail(nn, i)
+  if(!any(rcur[1:ncur[1]] == ".") && !rcur[ncur[1] + 1] == "#"){
+    if (rcur[1] == "#") return(vals[i - 1, j - ncur[1] - 1])
+    return(vals[i, j - 1] + vals[i - 1, j - ncur[1] - 1])
+  }
+  if (rcur[1] == "#") return(0)
+  vals[i, j - 1]
+}
+
+# `blocks` is a record split by dots.
+# Calls count_arrange5()
+dp_blocks5 <- function(blocks, nn) {
   if (length(nn) == 0){
-    if (str_detect(rr, "\\#")){
+    if (str_detect(str_flatten(blocks), "\\#")){
       return(0)
     }
     return(1)
   }
-  if (str_length(rr) < sum(nn) + length(nn) - 1) return(0L)
-  valid_now <- !(str_detect(str_sub(rr, 1, nn[1]), "\\.") ||
-                   str_sub(rr, nn[1] + 1, nn[1] + 1) == "#")
-  if (str_sub(rr, 1, 1) == "#"){
-    if (valid_now){
-      return(count_arrange(str_sub(rr, nn[1] + 2), nn[-1]))
+  if (length(blocks) == 0) return(0)
+  total <- 0
+  if (length(blocks) == 1) return(count_arrange5(blocks[1], nn))
+  if (!str_detect(blocks[1], "\\#")){
+    total <- total + dp_blocks5(blocks[-1], nn)
+  }
+  for (i in 1 : length(nn)){
+    nset <- nn[1:i]
+    if (str_length(blocks[1]) < sum(nset) + length(nset) - 1) break()
+    total <- total +
+      dp_blocks5(blocks[-1], nn[-c(1:i)]) *
+      count_arrange5(blocks[1], nset)
+  }
+  total
+}
+
+# as count_arrange4 but calling value_state2 - no dots in rr
+count_arrange5 <- function(rr, nn) {
+  rr <- str_split_1(rr, "")
+  vals <- matrix(NA_real_, nrow = length(nn), ncol = length(rr))
+  lenn <- length(nn)
+  lenr <- length(rr)
+  for (i in seq_along(nn)){
+    for (j in seq_along(rr)){
+      vals[i, j] <- value_state2(rr, nn, i, j, vals)
     }
-    return(0)
   }
-  if (!valid_now){
-    return(count_arrange(str_sub(rr, 2), nn))
+  vals[lenn, lenr]
+}
+
+# Called from count_arrange4
+value_state2 <- function(rr, nn, i, j, vals) {
+  lenn <- length(nn)
+  lenr <- length(rr)
+  if (j < sum(tail(nn, i)) + i - 1) return(0)
+  if (i == 1){
+    if (j < nn[lenn]) return(0)
+    rcur <- tail(rr, j)
+    if (j == nn[lenn]) return(1)
+    option_now <- !any(rcur[(nn[lenn] + 1):length(rcur)] == "#")
+    if(option_now){
+      if (rcur[1] == "#") return(1)
+      return(vals[i, j - 1] + 1)
+    }
+    if (rcur[1] == "#") return(0) else return(vals[i, j - 1])
   }
-  return(count_arrange(str_sub(rr, nn[1] + 2), nn[-1]) +
-           count_arrange(str_sub(rr, 2), nn))
+  rcur <- tail(rr, j)
+  ncur <- tail(nn, i)
+  if(!rcur[ncur[1] + 1] == "#"){
+    if (rcur[1] == "#") return(vals[i - 1, j - ncur[1] - 1])
+    return(vals[i, j - 1] + vals[i - 1, j - ncur[1] - 1])
+  }
+  if (rcur[1] == "#") return(0)
+  vals[i, j - 1]
 }

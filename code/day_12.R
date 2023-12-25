@@ -65,7 +65,10 @@ recs2 <- str_remove(recs, "\\.+$") %>%
   str_remove("^\\.+")
 system_time(sol <- map2_int(recs2[nn], nums[nn], ~count_arrange(.x, .y), .progress = TRUE))
 system_time(sol2 <- map2_int(recs2[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
-identical(sol, sol2)
+system_time(sol3 <- map2_int(recs2[nn], nums[nn], ~dp_blocks3(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+system_time(sol4 <- map2_int(recs2[nn], nums[nn], ~dp_blocks5(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+
+identical(sol2, sol3)
 sum(sol2)
 
 # part 2-------------
@@ -77,12 +80,15 @@ nums <- map_chr(lst, ~pluck(., 2)) %>%
   map(~as.numeric(str_split_1(., ","))) %>%
   map(~rep(., 5))
 nn <- seq_along(recs)
-nn <- 1
-system_time(sol <- map2_int(recs[nn], nums[nn], ~count_arrange(.x, .y), .progress = TRUE))
-#system_time(sol2 <- map2_dbl(recs[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+nn <- 1:6
+system_time(sol <- map2_dbl(recs[nn], nums[nn], ~count_arrange4(.x, .y), .progress = TRUE))
+system_time(sol2 <- map2_dbl(recs[nn], nums[nn], ~dp_blocks(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+system_time(sol3 <- map2_dbl(recs[nn], nums[nn], ~dp_blocks3(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+system_time(sol4 <- map2_dbl(recs[nn], nums[nn], ~dp_blocks5(str_split_1(.x, "\\.+"), .y), .progress = TRUE))
+
 sum(sol2)
 
-tb <- readRDS("out_12.RDS")
+tb2 <- readRDS("out_12.RDS")
 sol <- numeric(length(recs))
 tt <- numeric(length(recs))
 sol <- tb$result
@@ -94,21 +100,28 @@ for (i in 523:length(recs)){
   if (ti[1] > 1) print(ti)
   tt[i] <- ti[1]
 }
+for (i in 1:length(recs)){
+  ti <- system_time(sol[i] <- count_arrange4(recs[i], nums[[i]]))
+  cat(i, "\n")
+  if (ti[1] > 1) print(ti)
+  tt[i] <- ti[1]
+}
 
 max_block <- function(x) {
   str_split_1(x, "\\.+") %>%
     str_length() %>%
     max()
 }
-tb <- tibble(id = 1:1000, result = sol, time = tt, record = recs, nn = nums) %>%
+tb <- tibble(id = seq_along(tt), result = sol, time = tt, record = recs, nn = nums) %>%
   mutate(rlen = str_length(recs),
          nlen = map_int(nn, length),
          ntot = map_int(nn, sum)) %>%
   mutate(len_block = map_int(record, max_block)) %>%
   mutate(nhash = str_count(record, "#")) %>%
   mutate(dots = str_detect(record, "\\."))
-
-saveRDS(tb, "out_12.RDS")
+sum(tt)
+sum(sol)
+#saveRDS(tb, "out_12.RDS")
 
 # Explore timings -------------
 # longest block in a record
