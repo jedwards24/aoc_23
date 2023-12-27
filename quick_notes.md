@@ -16,6 +16,10 @@
 
 5.5 mins for the full problem. I've seen python implementations take a few seconds (partly due to a cleverer implementation using complex numbers for the moves).
 
+## Day 12
+
+TODO
+
 # Things to look up
 
 ## Working with lits

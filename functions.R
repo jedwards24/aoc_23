@@ -9,6 +9,7 @@ index_to_pos <- function(x, rows = 140) {
 }
 
 # Row/column of position of x in matrix mat
+# ** which(., arr.ind) does this but with matrix output
 which_mat <- function(x, mat) {
   ind <- which(x == mat)
   c((ind - 1) %% nrow(mat) + 1, ((ind - 1) %/% nrow(mat)) + 1)
