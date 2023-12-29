@@ -36,3 +36,13 @@ split_text <- function(x) {
 text_to_matrix <- function(x) {
   str_split(x, "", simplify = TRUE)
 }
+
+# input is list of numeric vectors
+intersect_all <- function(x) {
+  if (length(x) == 1) return(x[[1]])
+  out <- x[[1]]
+  for (i in 2 : length(x)){
+    out <- intersect(out, x[[i]])
+  }
+  out
+}
