@@ -26,6 +26,8 @@ TODO
 
 Remove elements from a list with `list[1] = NULL` or `list[[1]] = NULL` (seem to be the same).
 
+Notes on `lmap` and difference from map. Also `flatten()`.
+
 Appending vector `x` to list `y` (from d16):
 
 * `append(x, y)` and `c(y, x)` flatten the vector you are adding. 
