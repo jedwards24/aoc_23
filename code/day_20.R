@@ -52,7 +52,7 @@ push_button <- function(ff_status, conj_status, mods, mods_to, mod_type) {
         count <- c(count, new_pulses)
         record <- c(record,
                     paste(mods[mi],
-                          if (ff_status[mi])  " -high-> " else " -low->",
+                          if (ff_status[mi])  "-high->" else "-low->",
                     mods[forward]))
       }
       if (mod_type[mi] == "&"){ # conjunction
@@ -65,7 +65,7 @@ push_button <- function(ff_status, conj_status, mods, mods_to, mod_type) {
         count <- c(count, new_pulses)
         record <- c(record,
                     paste(mods[mi],
-                          if (!all(conj_status[[mi]]))  " -high-> " else " -low->",
+                          if (!all(conj_status[[mi]]))  "-high->" else "-low->",
                           mods[forward]))
 
       }
@@ -110,13 +110,14 @@ push_button2 <- function(ff_status, conj_status, mods, mods_to, mod_type) {
     todo <- todo[-1]
     prev <- prev[-1]
     pulses <- pulses[-1]
-    if (is.na(mi)){
-      if (!pi){
-        done <- TRUE
-        break()
-      }
-      next()
-    }
+    if (is.na(mi)) next()
+    # if (is.na(mi)){
+    #   if (!pi){
+    #     done <- TRUE
+    #     break()
+    #   }
+    #   next()
+    # }
     if (mod_type[mi] == "%" && !pi){ # flip-flop
       ff_status[mi] <- !ff_status[mi]
       todo <- c(todo, forward)
@@ -133,7 +134,7 @@ push_button2 <- function(ff_status, conj_status, mods, mods_to, mod_type) {
       pulses <- c(pulses, new_pulses)
     }
   }
-  list(ff_status = ff_status, conj_status = conj_status, done = done)
+  list(ff_status = ff_status, conj_status = conj_status)
 }
 
 cur_ff <- ff_status
@@ -170,32 +171,39 @@ mods_txt[c(21, 37)]
 res$conj_status[x]
 res$conj_status[46]
 
+# Run nn pushes. Collects all results
 cur_ff <- ff_status
 cur_conj <- conj_status
-nn <- 1e4
-ind <- roots[[1]]
-ff <- vector("list", nn)
+nn <- 2e4
+res_list <- vector("list", nn)
 for (i in 1:nn){
-  res <- push_button2(cur_ff, cur_conj, mods, mods_to, mod_type)
+  res_list[[i]] <- res <- push_button(cur_ff, cur_conj, mods, mods_to, mod_type)
   cur_ff <- res$ff_status
   cur_conj <- res$conj_status
-  ff[[i]] <- unlist(cur_ff[ind])
 }
-ff
-map_int(ff, sum) %>% vcount()
-map_int(conj, length) %>% vcount()
 
-# Run until any conjunction 46 memories are set to high
-
-cur_ff <- ff_status
-cur_conj <- conj_status
-cnt <- 0
-res <- list(done = FALSE)
-while(TRUE){
-  res <- push_button2(cur_ff, cur_conj, mods, mods_to, mod_type)
-  cur_ff <- res$ff_status
-  cur_conj <- res$conj_status
-  cnt <- cnt + 1
-  if (cnt %% 10000 == 0) cat(cnt, "\n")
-  if (any(cur_conj[[46]])) break()
+# Lengths of consecutive blocks of 1s and 0s in a numeric vector
+len_blocks <- function(x) {
+  y <- as.character(x) %>%
+    str_flatten()
+  zero <- str_extract_all(y, "0+")[[1]] %>%
+    str_length
+  ones <- str_extract_all(y, "1+")[[1]] %>%
+    str_length
+  list(zero = zero, one = ones)
 }
+
+# SOLUTION METHOD
+# Look for low pulses from the four key conjunctions
+# Looking at conjunction memory is not right as it may be all high then get reset during a cycle
+mods[x2]
+mods[x]
+st <- paste(mods[x2], "-low->", mods[x])
+rr <- map(res_list, ~.[["record"]])
+for (sti in st){
+  map_lgl(rr, ~any(str_detect(., sti))) %>%
+    which() %>%
+    cat("\n")
+}
+
+3767 * 3779 * 4057 * 3889 # Answer 224602953547789
