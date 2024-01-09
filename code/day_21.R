@@ -2,7 +2,7 @@ library(tidyverse)
 library(edwards)
 library(bench)
 source("functions.R")
-#source("code/day_17_func.R")
+source("code/day_21_func.R")
 txt <- readLines("data/test_21.txt")
 txt <- readLines("data/data_21.txt")
 mm <- text_to_matrix(txt)
@@ -10,17 +10,6 @@ garden <- mm != "#"
 #mm <- matrix(as.numeric(mm), nrow = nrow(mm))
 start <- which(mm == "S", arr.ind = TRUE) %>%
   as.vector()
-
-neighbours <- function(x) {
-  cbind(c(x[1] - 1, x[1] + 1, x[1], x[1]),
-        c(x[2], x[2], x[2] - 1, x[2] + 1))
-}
-
-valid_move <- function(x, mat = garden) {
-  x[1] >= 1 && x[1] <= nrow(mat) &&
-    x[2] >= 1 && x[2] <= ncol(mat) &&
-    mat[x[1], x[2]]
-}
 
 neighbours(start)
 neighbours(start) %>%
@@ -60,20 +49,6 @@ txt
 mm
 garden
 
-valid_move2 <- function(x, mat = garden) {
-    mat[x[1], x[2]]
-}
-
-# modulo division but with zero replaced by divisor
-mod2 <- function(x, y) {
-  out <- x %% y
-  out[out == 0] <- y
-  out
-}
-
-mod2((0:22), 11)
-
-
 locs <- which(mm == "S", arr.ind = TRUE)
 n_steps <- 500
 system_time(
@@ -111,3 +86,67 @@ locs
 # then work from each of these.
 # Although, the pattern on neighbouring maps will be different so will need all border locs as starts.
 
+# Try a 3x3 map
+start <- which(mm == "S", arr.ind = TRUE) %>%
+  as.vector()
+
+mm2 <- rbind(mm, mm, mm)
+mm3 <- cbind(mm2, mm2, mm2)
+mm3[mm3 == "S"] <- "."
+mm3[start[1] + nrow(mm), start[2] + ncol(mm)] <- "S"
+which(mm3 == "S", arr.ind = T)
+mms3 <- steps(mm3)
+
+mms[1:11, 1:11]
+mms[12:22, 1:11] # W
+mms[12:22, 23:33] # E
+mms[1:11, 12:22] # N
+mms[23:33, 12:22] # S
+
+# Single map
+mms <- steps(mm)
+str_extract_all(mms, "\\d+") %>%
+  unlist() %>%
+  as.integer() %>%
+  max()
+
+
+which(mm == "#") %>% length()
+
+# steps to each corner on next diagonal map from start
+nr <- nrow(mms)
+nc <- ncol(mms)
+corners <- c(mms[nr, nc], mms[nr, 1], mms[1, 1], mms[1, nc]) %>%
+  as.integer() %>%
+  setNames(c("tl", "tr", "br", "bl")) %>%
+  {.+2}
+
+# Lookup tables for a single map starting in a corner
+corn_locs <- list(tl = c(1, 1),
+                  tr = c(1, nc),
+                  br = c(nr, nc),
+                  bl = c(nr, 1))
+clu_list <- map(corn_locs, corner_lu, map_mat = mm)
+
+# Need:
+#  - steps to enter new map n each of 8 direction.
+#  - steps to enter new map from starting edge/corner in each direction.
+# Matrix with one location for each map. Count cumulative steps to enter each map.
+# Calculate number visited at end maps.
+#
+q1 <- quadrant(12, 100, 11, 11)
+
+total_gardens(q1, 100, clu_list[[1]]) * 4
+
+# NEWS directions
+# Single straight line of maps
+# Assume shortest traverse line passes through a corner (true on test data)
+#
+# End map is tricky. Can I just look at starting from up to 2 corners?
+# Redo corner_lu() to take minimum of two starting corners
+mms
+news_lu = list(w = mms3[12:22, 1:11],
+               e = mms3[12:22, 23:33],
+               n = mms3[1:11, 12:22],
+               s = mms3[23:33, 12:22])
+news_line(11, 100, nr)
