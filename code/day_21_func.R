@@ -51,7 +51,7 @@ steps <- function(map_mat) {
       mmi[locs[j, 1], locs[j, 2]] <- i
       gardeni[locs[j, 1], locs[j, 2]] <- FALSE
     }
-    if (i %% 100 == 0) cat(i, " ")
+#    if (i %% 100 == 0) cat(i, " ")
   }
   mmi
 }
@@ -80,6 +80,21 @@ news_line <- function(start_steps, max_steps, nn) {
   seq(start_steps, max_steps, by = nn)
 }
 
+# Sum all gardens reached in all maps
+# x is vector output from quadrant
+total_gardens <- function(x, max_steps, lu, odd = FALSE) {
+  map_dbl(x, ~garden_count(., lu, max_steps, odd)) %>%
+    sum()
+}
+
+# x is n steps to reach start of map
+# lu is vector of steps to reach each garden in map starting from 0
+garden_count <- function(x, lu, max_steps, odd = FALSE) {
+  rem <- if (odd) 1L else 0L
+  steps <- lu + x
+  sum(steps <= max_steps & steps %% 2L == rem)
+}
+
 # Table of number of gardens reached on a single map starting a corner
 # for any given number of steps remaining.
 # Even numbered steps only
@@ -87,57 +102,37 @@ corner_lu <- function(start, map_mat) {
   mmc <- map_mat
   mmc[mmc == "S"] <- "."
   mmc[start[1], start[2]] <- "S"
-  mms <- steps(mmc)
-  mms %>%
-    as.vector() %>%
-    {.[. != "#"]} %>%
-    as.integer() %>%
-    countv( sort = FALSE) %>%
-    filter(value %% 2 == 0) %>%
-    mutate(cumn = cumsum(n)) %>%
-    select(value, cumn) %>%
-    rename(steps = value, n = cumn)
+  out <- steps(mmc)
+  as.integer(out[out != "#" & out != "."])
 }
 
 # As corner_lu() but for NEWS directions.
 # There are two possible starting corners.
 # `starts` is a list of two locations
 # `start_steps` is a length 2 vector of relative starting steps of the two starts
-# ODD NUMBERED STEPS ONLY DEFAULT (change `odd` otherwise).
-corner_lu_news <- function(starts, start_steps, map_mat, odd = TRUE) {
-  rem <- if (odd) 1 else 0
+corner_lu_news <- function(starts, start_steps, map_mat) {
   mmc <- map_mat
   mmc[mmc == "S"] <- "."
   mms_list <- map2(starts, start_steps, ~steps_news(.x, .y, mmc))
   pmin(mms_list[[1]], mms_list[[2]]) %>%
     as.vector() %>%
-    countv( sort = FALSE) %>%
-    filter(value %% 2 == rem) %>%
-    mutate(cumn = cumsum(n)) %>%
-    select(value, cumn) %>%
-    rename(steps = value, n = cumn)
+    {.[!is.na(.)]}
+}
+
+# for debugging
+news_lu_map <- function(starts, start_steps, map_mat) {
+  mmc <- map_mat
+  mmc[mmc == "S"] <- "."
+  mms_list <- map2(starts, start_steps, ~steps_news(.x, .y, mmc))
+  pmin(mms_list[[1]], mms_list[[2]])
 }
 
 # Helper for corner_lu_news
 steps_news <- function(start, rel_steps, map_mat) {
   map_mat[start[1], start[2]] <- "S"
   out <- steps(map_mat)
-  out[which(out == "#")] <- NA
+  out[which(out == "#" | out == ".")] <- NA
   matrix(as.integer(out), nrow = nrow(out), ncol = ncol(out)) + rel_steps
-}
-
-
-# Sum all gardens reached in all maps
-# x is vector output from quadrant
-total_gardens <- function(x, max_steps, lu) {
-  map_dbl(max_steps - x, ~garden_count(., lu)) %>%
-    sum()
-}
-
-# Count gardens reachable from single map
-# x is scalar (steps left)
-garden_count <- function(x, lu) {
-  max(lu$n[lu$steps <= x])
 }
 
 # Count gardens reached in single map
@@ -145,7 +140,7 @@ garden_count <- function(x, lu) {
 # x is output of steps()
 garden_count_start <- function(x, odd = FALSE) {
   rem <- if (odd) 1L else 0L
-  vv <- x[x != "#"] %>%
+  vv <- x[x != "#" & x != "."] %>%
     as.integer()
   length(vv[vv %% 2 == rem])
 }
@@ -163,7 +158,7 @@ garden_count_single <- function(x, n_steps, odd = FALSE) {
 # Create list of starting corners for NEWS moves
 # x is corn_locs
 locs_news <- function(x) {
-  dirs <- c("t", "r", "b", "l")
+  dirs <- c("n", "e", "s", "w")
   out <- vector("list", length(dirs))
   for (i in seq_along(dirs)){
     out[[i]] <- x[str_detect(names(x), dirs[i])]
@@ -174,7 +169,7 @@ locs_news <- function(x) {
 # Create list of start for each news starting location
 # x is `corners`
 news_starts <- function(x) {
-  dirs <- c("t", "r", "b", "l")
+  dirs <- c("n", "e", "s", "w")
   out <- vector("list", length(dirs))
   for (i in seq_along(dirs)){
     out[[i]] <- x[str_detect(names(x), dirs[i])] + 1

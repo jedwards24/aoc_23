@@ -50,7 +50,7 @@ mm
 garden
 
 locs <- which(mm == "S", arr.ind = TRUE)
-n_steps <- 16
+n_steps <- 200
 system_time(
   for (i in 1:n_steps){
     new <- locs %>%
@@ -96,49 +96,69 @@ str_extract_all(mms, "\\d+") %>%
 
 which(mm == "#") %>% length()
 
+# Setup---------
 # steps to each corner on next diagonal map from start
+mms <- steps(mm)
 nr <- nrow(mms)
 nc <- ncol(mms)
-corners <- c(mms[nr, nc], mms[nr, 1], mms[1, 1], mms[1, nc]) %>%
+corners <- c(mms[1, 1], mms[1, nc], mms[nr, nc], mms[nr, 1]) %>%
   as.integer() %>%
-  setNames(c("tl", "tr", "br", "bl"))
+  setNames(c("nw", "ne", "se", "sw"))
 corners_start <- corners + 2
 
 # Lookup tables for a single map starting in a corner
-corn_locs <- list(tl = c(1, 1),
-                  tr = c(1, nc),
-                  br = c(nr, nc),
-                  bl = c(nr, 1))
-clu_list <- map(corn_locs, corner_lu, map_mat = mm)
-names(clu_list)
-# Need:
-#  - steps to enter new map n each of 8 direction.
-#  - steps to enter new map from starting edge/corner in each direction.
-# Matrix with one location for each map. Count cumulative steps to enter each map.
-# Calculate number visited at end maps.
-#
+# Direction are in direction of travel so corner positions are not the same as `corners`
+corn_locs <- list(nw = c(nr, nc),
+                  ne = c(nr, 1),
+                  se = c(1, 1),
+                  sw = c(1, nc))
 
-corn_locs_news <- locs_news(corn_locs)
+corn_locs_news <- list(n = list(c(nr, 1), c(nr, nc)),
+                       e = list(c(1, 1), c(nr, 1)),
+                       s = list(c(1, nc), c(1, 1)),
+                       w = list(c(1, nc), c(nr, nc)))
 corners_start_news <- news_starts(corners)
 rel_start <- map(corners_start_news, ~. - min(.))
 
 # Run ---------
-n_steps <- 16
-q_list <- map(corners_start, ~quadrant(., n_steps, nr, nc))
+n_steps <- 26501365
+n_steps <- 5e5
+
+odd_flag <- if (n_steps %% 2 == 1) TRUE else FALSE
+clu_list <- map(corn_locs, corner_lu, map_mat = mm)
+q_list <- map(corners_start, ~quadrant(., n_steps, nr, nc), .progress = TRUE)
 ngard_q <- map2_dbl(q_list, clu_list, ~total_gardens(.x, n_steps, .y))
+object_size_all()
 
 stopifnot(nr == nc)
 line_list <- map_dbl(corners_start_news, min) %>%
   map(~news_line(., n_steps, nr)) # ONLY IF nr == nc
 news_lu_list <- map2(corn_locs_news, rel_start, ~corner_lu_news(.x, .y, mm))
+ngard_news <- map2_dbl(line_list, news_lu_list, ~total_gardens(.x, n_steps, .y, odd = odd_flag))
+sum(ngard_news) + sum(ngard_q) + garden_count_start(mms, odd = odd_flag) # answer
 
-ngard_news <- map2_dbl(line_list, news_lu_list, ~total_gardens(.x, n_steps, .y))
 
-sum(ngard_news) + sum(ngard_q) + garden_count_start(mms) # answer
-# should be 129 for n=16
+# 5e5 n_steps gives q_list length 7M * 4
+nn <- 26501365
+(nn / 131)^2 / 2 # len each q
 
+countv(as.vector(mms), sort = F)
 # Debug----------
 # 3x3 map steps then split by map
+map_int(news_lu_list, max)
+map_dbl(line_list[[3]], ~garden_count(., news_lu_list[[3]], n_steps))
+steps2(c(nr, 1), mm)
+steps2(c(nr, nc), mm)
+news_lu_map(corn_locs_news[[3]], rel_start[[3]], mm)
+
+# as steps but takes a start location
+steps2 <- function(start, map_mat) {
+  mmc <- map_mat
+  mmc[mmc == "S"] <- "."
+  mmc[start[1], start[2]] <- "S"
+  steps(mmc)
+}
+
 start <- which(mm == "S", arr.ind = TRUE) %>%
   as.vector()
 
@@ -148,6 +168,23 @@ mm3[mm3 == "S"] <- "."
 mm3[start[1] + nrow(mm), start[2] + ncol(mm)] <- "S"
 which(mm3 == "S", arr.ind = T)
 mms3 <- steps(mm3)
+
+# Table of results
+x <- list(1:11, 12:22, 23:33)
+tb <- expand_grid(a = c(1, 12, 23), b = c(1, 12, 23)) %>%
+  mutate(sector = map2(a, b, ~mms3[.x:(.x+10), .y:(.y+10)])) %>%
+  mutate(id = row_number()) %>%
+  mutate(ng = map_int(sector, ~garden_count_single(., n_steps)))
+tb
+my_res <- integer(9)
+my_res[c(9, 7, 1, 3)] <- ngard_q
+my_res[c(2, 4, 6, 8)] <- ngard_news
+my_res[5] <- garden_count_start(mms)
+tb <- tb %>%
+  mutate(mine = my_res)
+tb
+
+
 
 mms3[1:11, 1:11]
 mms3[12:22, 1:11] # W
