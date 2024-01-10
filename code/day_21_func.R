@@ -76,6 +76,7 @@ quadrant <- function(start_steps, max_steps, nr, nc) {
 # starting from the edge of a map after `start_steps` steps.
 # nn is dimension of map in direction of travel.
 news_line <- function(start_steps, max_steps, nn) {
+  if (start_steps > max_steps) return (c())
   seq(start_steps, max_steps, by = nn)
 }
 
@@ -91,11 +92,38 @@ corner_lu <- function(start, map_mat) {
     as.vector() %>%
     {.[. != "#"]} %>%
     as.integer() %>%
-    countv( sort = F) %>%
+    countv( sort = FALSE) %>%
     filter(value %% 2 == 0) %>%
     mutate(cumn = cumsum(n)) %>%
     select(value, cumn) %>%
     rename(steps = value, n = cumn)
+}
+
+# As corner_lu() but for NEWS directions.
+# There are two possible starting corners.
+# `starts` is a list of two locations
+# `start_steps` is a length 2 vector of relative starting steps of the two starts
+# ODD NUMBERED STEPS ONLY DEFAULT (change `odd` otherwise).
+corner_lu_news <- function(starts, start_steps, map_mat, odd = TRUE) {
+  rem <- if (odd) 1 else 0
+  mmc <- map_mat
+  mmc[mmc == "S"] <- "."
+  mms_list <- map2(starts, start_steps, ~steps_news(.x, .y, mmc))
+  pmin(mms_list[[1]], mms_list[[2]]) %>%
+    as.vector() %>%
+    countv( sort = FALSE) %>%
+    filter(value %% 2 == rem) %>%
+    mutate(cumn = cumsum(n)) %>%
+    select(value, cumn) %>%
+    rename(steps = value, n = cumn)
+}
+
+# Helper for corner_lu_news
+steps_news <- function(start, rel_steps, map_mat) {
+  map_mat[start[1], start[2]] <- "S"
+  out <- steps(map_mat)
+  out[which(out == "#")] <- NA
+  matrix(as.integer(out), nrow = nrow(out), ncol = ncol(out)) + rel_steps
 }
 
 
@@ -112,3 +140,44 @@ garden_count <- function(x, lu) {
   max(lu$n[lu$steps <= x])
 }
 
+# Count gardens reached in single map
+# (used for starting map)
+# x is output of steps()
+garden_count_start <- function(x, odd = FALSE) {
+  rem <- if (odd) 1L else 0L
+  vv <- x[x != "#"] %>%
+    as.integer()
+  length(vv[vv %% 2 == rem])
+}
+
+# helper for debugging
+# Count gardens reached on single map in no more than n_steps
+# Even only unless odd = TRUE
+garden_count_single <- function(x, n_steps, odd = FALSE) {
+  rem <- if (odd) 1L else 0L
+  vv <- x[x != "#"] %>%
+    as.integer()
+  length(vv[vv <= n_steps & vv %% 2 == rem])
+}
+
+# Create list of starting corners for NEWS moves
+# x is corn_locs
+locs_news <- function(x) {
+  dirs <- c("t", "r", "b", "l")
+  out <- vector("list", length(dirs))
+  for (i in seq_along(dirs)){
+    out[[i]] <- x[str_detect(names(x), dirs[i])]
+  }
+  out
+}
+
+# Create list of start for each news starting location
+# x is `corners`
+news_starts <- function(x) {
+  dirs <- c("t", "r", "b", "l")
+  out <- vector("list", length(dirs))
+  for (i in seq_along(dirs)){
+    out[[i]] <- x[str_detect(names(x), dirs[i])] + 1
+  }
+  out
+}
