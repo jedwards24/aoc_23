@@ -56,19 +56,14 @@ steps <- function(map_mat) {
   mmi
 }
 
-# Returns a vector of the number of steps to reach any map
+# Returns a tibble of the number of steps to reach any map (with counts)
 # starting from the corner of a map after `start_steps` steps.
 # On;ly maps reached in no more than max_steps are included.
 # nr, nc is the nrow, ncol of each map
 # A numeric vector is returned with one number for each map.
 quadrant <- function(start_steps, max_steps, nr, nc) {
-  out <- c()
-  for (i in 0:(max_steps / nc)){
-    if (start_steps + i * nc > max_steps) break()
-    cur <- seq(start_steps + i * nc, max_steps, by = nr)
-    out <- c(out, cur)
-  }
-  out
+  steps <- seq(start_steps, max_steps, by = nr)
+  tibble(steps, n = seq_along(steps))
 }
 
 # Returns a vector of the number of steps to reach any map
@@ -81,11 +76,16 @@ news_line <- function(start_steps, max_steps, nn) {
 }
 
 # Sum all gardens reached in all maps
-# x is vector output from quadrant
+# x is output from quadrant or news_line
 total_gardens <- function(x, max_steps, lu, odd = FALSE) {
-  map_dbl(x, ~garden_count(., lu, max_steps, odd)) %>%
+  if (is_tibble(x)){
+    ng <- map_int(x$steps, ~garden_count(., lu, max_steps, odd))
+    return(sum(ng * x$n))
+  }
+  map_int(x, ~garden_count(., lu, max_steps, odd)) %>%
     sum()
 }
+
 
 # x is n steps to reach start of map
 # lu is vector of steps to reach each garden in map starting from 0
